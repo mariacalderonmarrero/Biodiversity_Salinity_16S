@@ -12,3 +12,53 @@ knitr::opts_chunk$set(echo = TRUE,
                       fig.path = "../figures/01_QualityTrimming")
 ```
 
+# Set up the environment
+
+## Setting the See
+
+```{r set-seed}
+set.seed(238428)
+```
+
+## Load Libraries
+
+```{r}
+pacman::p_load(tidyverse, dada2, patchwork, 
+               Biostrings, ShortRead,
+               install = FALSE)
+```
+
+
+# Read in Raw Sequences
+
+```{r red-raw-fastqs}
+# set the pas to the raw seq files
+
+raw_fastqs_path <- "data/00_raw_gzipped_fastqs"
+raw_fastqs_path
+
+# What files are in this path?
+head(list.files(raw_fastqs_path))
+
+# How many?
+length(list.files(raw_fastqs_path))
+
+# Create vector of forward reads
+forward_reads <- list.files(raw_fastqs_path,
+                            pattern = "R1_001.fastq.gz",
+                            full.names = TRUE)
+                            
+#Intuition check
+head(forward_reads)
+length(forward_reads)
+
+# Create vector of reverse reads
+reverse_reads <- list.files(raw_fastqs_path,
+                            pattern = "R2_001.fastq.gz",
+                            full.names = TRUE)
+#intuition check
+head(reverse_reads)
+length(reverse_reads)
+
+```
+
