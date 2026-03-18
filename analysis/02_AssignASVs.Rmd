@@ -1,0 +1,136 @@
+---
+title: "Assign ASVs with DADA2"
+author: "Maria Calderon-Marrero"
+date: "2026-03-11"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup-Rmd, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, 
+                      fig.align = "center",
+                      # make sure to create folder
+                      fig.path = "../figures/02_AssignASVs")
+```
+
+# Prepare Environment
+```{r setup}
+set.seed(238428)
+
+# set the number of threads
+n_threads = 8
+
+# Load packages
+pacman::p_load(tidyverse, dada2, patchwork,
+               install = FALSE)
+
+```
+
+# Load in QC'd FastQ files
+```{r load-fastqs}
+filtered_fatsqs_path <- "data/01_QualityTrimming/filtered_fastqs"
+
+#Forward read vector
+filtered_forward_reads <- list.files(filtered_fatsqs_path, pattern = "R1_filtered.fastq.gz",
+           full.names = TRUE)
+
+#Reverse read vector
+filtered_reverse_reads <- list.files(filtered_fatsqs_path, pattern = "R2_filtered.fastq.gz",
+           full.names = TRUE)
+
+# Create vector of sample names
+sample_names <- sapply(strsplit(basename(filtered_forward_reads), "_"), `[`,1) 
+```
+
+
+# Error Model 
+
+## Learn errors
+
+```{r learn-errors}
+# Forward
+error_forward_reads <-
+  learnErrors(filtered_forward_reads, multithread = n_threads)
+
+#Reverse
+error_reverse_reads <-
+  learnErrors(filtered_reverse_reads, multithread = n_threads)
+
+#Plot the errors
+## Forward
+forward_error_plot <-
+  plotErrors(error_forward_reads, nominalQ = TRUE) +
+  labs(title= "Forward Reads: Error Model")
+
+## Reverse
+reverse_error_plot <-
+  plotErrors(error_reverse_reads, nominalQ = TRUE) +
+  labs(title= "Reverse Reads: Error Model")
+
+
+# Plot them together
+forward_error_plot + reverse_error_plot
+
+```
+
+# Infer ASVs seperately on Forward and Reverse Reads
+
+```{r infer-ASVs}
+
+#Forwards ASV inference
+dada_forward <-
+  dada(filtered_forward_reads,
+       err = error_forward_reads,
+       multithread = n_threads)
+
+# Reverse ASV Inference
+dada_reverse <-
+  dada(filtered_reverse_reads,
+       err = error_reverse_reads,
+       multithread = n_threads)
+
+# Take a look at the data
+typeof(dada_forward)
+dada_forward
+str(dada_forward)
+```
+
+# Merge Forwards and Reverse Reads
+
+```{r merge-ASVs}
+merge_ASVs <-
+  mergePairs(dada_forward, filtered_forward_reads,
+             dada_reverse, filtered_reverse_reads,
+             verbose = TRUE)
+# Evaluate the output
+typeof(merge_ASVs)
+length(merge_ASVs)
+head(merge_ASVs)
+
+#take a look at the sample
+merge_ASVs$WaterControl_R1_filtered.fastq_gz
+```
+
+# Create Raw ASV count table
+
+```{r raw-asv-table}
+raw_ASV_table <-
+  makeSequenceTable(merge_ASVs)
+
+# What are the dimensions of that table
+
+dim(raw_ASV_table)
+rownames(raw_ASV_table)
+colnames(raw_ASV_table)
+typeof(raw_ASV_table)
+class(raw_ASV_table)
+
+```
+
+
+
+
+
+
+
