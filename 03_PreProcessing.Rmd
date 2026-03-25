@@ -1,0 +1,116 @@
+---
+title: "Preprocessing Data Analysis"
+author: "Maria Calderon-Marrero"
+date: "`r Sys.Date()`"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup}
+knitr::opts_chunk$set(fig.path = "../figures/03_PreProcessing")
+
+```
+
+# Goals
+
+1. Remove chloroplasts
+2. Remove mitochondria
+3. Remove ASVs from negative controls and also negative control samples.
+4. Evaluate accuracy by looking at the Mock Community.
+5. Check for reverse complements!
+6. Remove samples without “enough” reads.
+
+# Input
+
+1. Raw phyloseq object
+
+```
+cp /workdir/in_class_data/raw_physeq.RData/workdir/mdc289/Biodiversity_Salinity_16S/data/02_AssignASVs
+```
+
+# Output
+
+1. CLeaned up phyloseq object called 'data/03_PreProcessing/preprocessed_physeq.Rdata
+
+#Set up the Environment
+
+```{r load-packages-data}
+set.seed(238428)
+
+#Load packages
+pacman::p_load(phyloseq, tidyverse, install = FALSE)
+
+# Load data
+load("data/02_AssignASVs/raw_physeq.RData")
+#Take a look
+raw_physeq
+```
+
+# CLean up data
+
+## Chloroplasts & Mitochondria
+
+```{r- chloromito}
+noChloroMitos_physeq <-
+raw_physeq %>%
+  subset_taxa(Order != "Chloroplast" | is.na(Order)) %>% #248 cholorplasts
+ subset_taxa(Family != "Mitochondria" | is.na(Family)) #74 mito
+
+# How to access data in a phyloseq object?
+tax_table(raw_physeq)
+
+# How to access data
+View(sample_data(raw_physeq))
+
+# Intuition Check
+ntaxa(raw_physeq) - ntaxa(noChloroMitos_physeq)
+```
+
+#Negative Controls
+```{r neg-controls}
+#create a vector of samples that were negative controls
+control_samples <- c("WaterControl", "022um-Control", "3um-Control", "DNA-Ext-Control")
+
+#create phyloseq object of ONLY negative controls
+
+control_physeq <-
+  noChloroMitos_physeq %>%
+  subset_samples(names %in% control_samples) %>%
+  prune_taxa(taxa_sums(.) > 0, .)
+
+#Visualize the ASV abundances in negative controls
+control_physeq %>%
+  plot_bar(., "ASV", fill = "ASV")
+
+# Vector of control ASVs (31)
+
+# Create phyoloseq object of just those 31 ASVs across 95 samples
+control_ASVs <-
+  control_physeq %>%
+  taxa_names()
+
+controlASV_physeq<-
+  noChloroMitos_physeq %>%
+  subset_taxa(ASV %in% Control_ASVs)
+
+controlASV_physeq %>%
+  plot_bar(., "ASV", fill = "ASV", facet_grid = Sample_or_Control~.)
+
+# Remove 29 of the control ASVs from the data
+controlASVs_toREMOVE <- 
+  dplyr::setdiff(control_ASVs, c("ASV_0019", "ASV_0055"))
+
+length(controlASVs_toREMOVE)
+
+# Make a new physeq object without these 29 ASVs
+noControlsChlorosMitos_physeq <- 
+  noChlorosMitos_physeq %>%
+  # actually remove the control ASVs 
+  subset_taxa(., !(ASV %in% controlASVs_toREMOVE)) %>%
+  # Remove control samples 
+  subset_samples(., !(names %in% control_samples))
+
+```
+
+
