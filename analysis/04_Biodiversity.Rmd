@@ -1,0 +1,110 @@
+---
+title: "Biodiversity Analysis"
+author: "Maria Calderon-Marrero"
+date: "`r Sys.Date()`"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+# Load Packages
+
+```{r load-packages-colors}
+pacman::p_load(tidyverse, patchwork, iNEXT, phyloseq, install=FALSE)
+
+# Load in colors for plotting
+source("code/colors_and_shapes.R")
+
+```
+
+# Load the Preprocessed Phyloseq Data
+
+```{r load data}
+load("data/03_PreProcessing/preprocessed_phyloseq.RData")
+
+# Take a look at the data
+preprocessed_physeq
+
+# Intuition check on sequencing depth
+min(sample_sums(preprocessed_physeq))
+
+```
+
+# Calculate Biodiversity with Hill Numbers
+```{r calc-biodiversity}
+# Prepare the input data
+## Species in rows and the samples in columns 
+iNEXT_input_df <- 
+  preprocessed_physeq %>%
+  otu_table() %>%
+  data.frame()
+
+# Inpect 
+dim(iNEXT_input_df)
+
+iNEXT_input_df[1:5, 1:5]
+
+# Run iNEXT
+iNEXT_data <- iNEXT(iNEXT_input_df, q = c(0, 1, 2), datatype = "abundance")
+
+load("data/04_Biodiversity/iNEXT_data.RData")
+
+# Inspect 
+str(iNEXT_data)
+
+typeof(iNEXT_data)
+
+```
+
+# Plot Rarefaction Curves
+
+## Prepare Metdata
+```{r prep-metadata}
+
+# Make a metadata object
+metadata_df <-
+  preprocessed_physeq %>%
+  sample_data() %>%
+  data.frame()
+glimpse(metadata_df)
+
+#Create color dataFrame
+color_df <-
+  iNEXT_input_df %>%
+  colnames() %>%
+  data.frame()
+glimpse (color_df)
+
+# Add names
+colnames(color_df)[1] <- "names"
+head(color_df)
+
+iNEXT_color_df <- 
+  color_df %>%
+  mutate(names = gsub(names, pattern = "[.]", replace = "-"),
+         names = gsub(names, pattern = "X",  replace = "")) %>%
+  # Merge with metadata
+  left_join(metadata_df, by = "names") %>%
+  # Merge with colors for plotting with ggiNEXT
+  left_join(data.frame(salinity_colors = salinity_colors,
+            salinity_group = names(salinity_colors)),
+            by = "salinity_group")
+
+#Intuition check
+head(iNEXT_color_df$salinity_colors)
+```
+
+```{r plot-rarefaction}
+ggiNEXT(iNEXT_data, type = 1, facet.var = "Order.q") + 
+  scale_color_manual(values = iNEXT_color_df$salinity_colors) + 
+  scale_fill_manual(values = iNEXT_color_df$salinity_colors) + 
+  theme_bw() + 
+  theme(legend.position = "none") + 
+  labs(y = "Effective Number of ASVs", x = "Number of Sequences") 
+```
+
+
+
+
+
+
