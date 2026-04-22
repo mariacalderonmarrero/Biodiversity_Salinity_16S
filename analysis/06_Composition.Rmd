@@ -1,0 +1,89 @@
+---
+title: 'Microbial Compositional Analysis Across a Salinity Gradient'
+author: "Maria Calderon-Marrero"
+date: "`r Sys.Date()`"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+# Load Environment
+```{r load-env}
+pacman::p_load(tidyverse, devtools, DT, phyloseq, patchwork, 
+               install = FALSE)
+
+# load colors and shapes
+source("code/colors_and_shapes.R")
+
+# Load phyloseq scaled phyloseq object
+load("data/05_Ordination/scaled_physeq.RData")
+
+# Look at the object
+scaled_physeq #scaled to 2,107 reads
+min(sample_sums(scaled_physeq))
+
+```
+
+# Taxonomic Analysis
+
+## Phylum Level
+```{r plot-phyla}
+# Create a phylum level dataframe
+phylum_df <- 
+  scaled_physeq %>%
+  # Agglomerate all ASV/genus/family/order/class within a single phylum
+  tax_glom(taxrank = "Phylum") %>%
+  # Calculate the relative abundance! 
+  transform_sample_counts(function(x) {x/sum(x)}) %>%
+  # Create a dataframe from phyloseq object
+  psmelt()
+  # Filter out Phyla < 1 % 
+  #dplyr::filter(Abundance > 0.01) %>%
+
+#take a look
+glimpse(phylum_df)
+
+#What are the phylum abundances? 
+phylum_df %>%
+  group_by(Phylum) %>%
+  summarize(mean_PercAbund = round(mean(Abundance), digits = 4)) %>%
+  arrange(-mean_PercAbund) %>%
+  datatable()
+
+# Make a list of phyla the top phyla 
+top10_phyla <- 
+  phylum_df %>%
+  group_by(Phylum) %>%
+  summarize(mean_PercAbund = mean(Abundance)) %>%
+  arrange(-mean_PercAbund) %>%
+  head(n = 10) %>%
+  pull(Phylum)
+
+# show it 
+top10_phyla
+
+# create a plot
+phylum_df %>%
+  dplyr::filter(Phylum %in% top10_phyla) %>%
+  ggplot(aes(x = salinity_group, y = Abundance, fill = Phylum, color = Phylum)) + 
+  facet_wrap(Phylum~., scales = "free", nrow = 2) + 
+  # add the stacked bar 
+  geom_jitter() +
+  geom_boxplot(outlier.shape = NA, alpha = 0.5) + 
+  # change the colors to be our selected colors 
+  scale_fill_manual(values = phylum_colors) + 
+  scale_color_manual(values = phylum_colors) + 
+  theme_bw() + 
+  theme(legend.position = "none",
+        axis.text.x = element_text(angle = 30, hjust = 1, vjust = 1))
+
+```
+
+
+
+
+
+
+
+
+
+

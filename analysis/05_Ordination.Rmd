@@ -105,8 +105,9 @@ plot_ordination(physeq = scaled_physeq,
  ## PERMANOVA
 ```{r stats}
 ## PERMANOVA
-adonis2(scaled_bray_dist ~ salinity_group,
-        data = data.frame(sample_data(scaled_physeq)))
+adonis2(scaled_bray_dist ~ salinity_group + date,
+        data = data.frame(sample_data(scaled_physeq)), 
+        by = "terms")
 
 ## BETADISPER
 ### Test dispersion/variances within groups
